@@ -1,0 +1,18 @@
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-lg-12">
+      <div class="card">
+        <div class="card-header">
+          <a class="btn btn-info btn-sm" [routerLink]="['/sqlquery/query']" role="button">SQL查询</a>
+          <a class="btn btn-secondary btn-sm" [routerLink]="['/sqlquery/sqlmanage']" role="button">SQL管理</a>
+          <!--<a class="btn btn-secondary btn-sm" [routerLink]="['/sqlquery/execlog']" role="button">执行日志</a>-->
+          <a class="btn btn-secondary btn-sm" [routerLink]="['/sqlquery/privilege']" role="button">权限管理</a>
+          <a class="btn btn-secondary btn-sm">查询日志</a>
+        </div>
+        <div class="card-block">
+          <router-outlet></router-outlet>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,17 @@
+<div class="container">
+  <form class="form-signin" (ngSubmit)="login()" #loginForm="ngForm">
+    <h2 class="form-signin-heading">Please sign in</h2>
+    <label for="inputEmail" class="sr-only">UserName</label>
+    <input type="text" id="inputEmail" class="form-control" placeholder="Username" required="" autofocus=""
+           [(ngModel)]="_user.username">
+    <label for="inputPassword" class="sr-only">Password</label>
+    <input type="password" id="inputPassword" class="form-control" placeholder="Password" required=""
+           [(ngModel)]="_user.password">
+    <button class="btn btn-lg btn-primary btn-block" type="submit" [disabled]="!loginForm.form.valid">登录</button>
+    <div [hidden]="_hidden_login_img">
+      <i class="fa fa-spinner fa-spin fa-3x fa-fw"></i>
+      <span class="sr-only">Loading...</span>登录中...
+    </div>
+    <h1><p>{{ _error }}</p></h1>
+  </form>
+</div>

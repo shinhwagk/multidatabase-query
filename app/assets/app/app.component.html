@@ -1,0 +1,16 @@
+<nav class="navbar navbar-light bg-faded">
+  <a class="navbar-brand" href="/">Home</a>
+  <ul class="nav navbar-nav">
+    <li class="nav-item">
+      <a class="nav-link" [routerLink]="['/sqlquery/query']">SQL查询</a>
+    </li>
+  </ul>
+  <ul class="nav navbar-nav pull-xs-right">
+    <li class="nav-item">
+      <button [hidden]="_login_status" class="btn btn-success btn-sm" [routerLink]="['/login']">Sugn in</button>
+      <button [hidden]="!_login_status" class="btn btn-warning btn-sm" (click)="logout()">sign out</button>
+    </li>
+  </ul>
+</nav>
+
+<router-outlet></router-outlet>

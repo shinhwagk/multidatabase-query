@@ -1,0 +1,35 @@
+<div class="container-fluid">
+  <div class="card">
+    <div class="card-header">
+      查询结果
+    </div>
+    <div class="card-block">
+      <div [hidden]="_display_query_wait">
+        <i class="fa fa-spinner fa-spin fa-3x fa-fw"></i>
+        <span class="sr-only">Loading...</span>查询中...
+      </div>
+      <div *ngIf="successResultStatus">
+        <table class="table table-striped">
+          <thead>
+          <tr>
+            <th *ngFor="let row of successResult[0]">{{ row[0] }}</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let row of successResult ; let i=index">
+            <td *ngFor="let r of row">{{ r[1] }}</td>
+          </tr>
+          </tbody>
+        </table>
+        <nav *ngIf="!failureResultStatus">
+          <ul class="pager">
+            <li><a (click)="paging(1)">Previous</a></li>
+            <!--<li>{{ queryObj.page }}</li>-->
+            <li><a (click)="paging(0)">Next</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div *ngIf="failureResultStatus">{{ failureResult }}</div>
+    </div>
+  </div>
+</div>

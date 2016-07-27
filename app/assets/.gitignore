@@ -1,10 +1,4 @@
-/**/*
-!index.html
-!package.json
-!README.md
-!systemjs.config.js
-!tsconfig.json
-!typings.json
-!app/app.component.ts
-!app/main.ts
-!.gitignore
+node_modules
+typings
+app/**/*.js
+app/**/*.map
