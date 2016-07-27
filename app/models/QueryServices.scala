@@ -58,12 +58,12 @@ object QueryServices {
   }
 
   def generateQueryAstrictSql(sql: String): String = {
-    val querynumber = Parameter._query_number
+    val querynumber = Configure._query_number
     s"""SELECT * FROM ($sql) WHERE ROWNUM < ${querynumber}"""
   }
 
   def generateQueryFullTableSql(sql: String, page: Int): String = {
-    val pageSpan = Parameter._query_page_span
+    val pageSpan = Configure._query_page_span
     s"""SELECT * FROM (SELECT ROWNUM RN, A.* FROM ($sql) A WHERE ROWNUM < ${(page + 1) * pageSpan}) WHERE RN >= ${page * pageSpan}"""
   }
 
@@ -90,5 +90,5 @@ object QueryServices {
     new HikariDataSource(new HikariConfig(props));
   }
 
-  val orclConnPool: Map[String, HikariDataSource] = Map("whdb2" -> whdb2, "cloud" -> cloud, "whpay" -> whpay)
+  private val orclConnPool: Map[String, HikariDataSource] = Map("whdb2" -> whdb2, "cloud" -> cloud, "whpay" -> whpay)
 }

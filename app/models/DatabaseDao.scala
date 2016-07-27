@@ -74,7 +74,7 @@ object DatabaseDao {
     db.run(sql"""select JSON_UNQUOTE(data->'$$.lastsql') from wex_app_OracleSqlQuery.username = $username""".as[String].head)
   }
 
-  def updateLastQuerySqls(username: String, sqlText: String):Future[Int] = {
+  def updateLastQuerySqls(username: String, sqlText: String): Future[Int] = {
     Future.successful(1)
 
   }
@@ -86,4 +86,8 @@ object DatabaseDao {
   def updateFullQueryNumber(username: String): Future[Int] = {
     Future.successful(1)
   }
+
+  def getAllSchemas: Future[List[String]] = ???
+
+  def getUserAllowSchemas(username:String): Future[List[String]] = ???
 }

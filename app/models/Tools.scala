@@ -33,7 +33,7 @@ object Tools {
     }
   }
 
-  def main(args: Array[String]) {
-    println(1)
-  }
+//  def main(args: Array[String]) {
+//    println(1)
+//  }
 }
