@@ -1,0 +1,21 @@
+#GET / controllers.Application.index
+
+
+POST /api/login  controllers.Application.login
+POST /api/logout  controllers.Application.logout
+
+GET /api/sqlquery/user controllers.Application.user
+GET /api/sqlquery/dbserver controllers.Application.dbserver
+
+POST /api/sqlquery/query/result controllers.Application.executeQuery
+
+#GET /api/sqlquery/sqls/self/groups controllers.Application.sqlGroups
+#GET /api/sqlquery/sqls/self/group/:group controllers.Application.sqlGroups(group:String)
+#GET /api/sqlquery/sqls/share/users controllers.Application.sqlUsers
+#GET /api/sqlquery/sqls/share/user/:user controllers.Application.sqlTextsOfUser(user:String)
+
+
+# /api/sqlquery/query/sql/share/user/:user
+#GET /api/sqlquery/servers
+
+#GET /api/sqlquery/user  controllers.Application.user
