@@ -124,12 +124,12 @@ class DatabasePool:
         ch = os.getenv('CONSUL_HOST')
         cp = os.getenv('CONSUL_PORT')
         cs = os.getenv('CONSUL_SERVICES')
-        orcl_user = os.getenv('ORACLE_USER')
 
         if ch is not None and cp is not None and cs is not None:
             dss = {}
             c = Consul(host=ch, port=cp)
-            v = c.kv.get(f'database/oracle/userpass/{orcl_user}', index=None)
+            v = c.kv.get(f'database/oracle/userpass/multidatabase', index=None)
+            user, password = v[1]['Value'].decode('utf-8').split(':')
             for s in cs.split(','):
                 (_, services) = c.catalog.service(s)
                 for _s in services:
@@ -139,8 +139,8 @@ class DatabasePool:
                     db_port = sm['db_port']
                     db_sn = sm['db_sn']
                     dss[db_id] = {
-                        "user": orcl_user,
-                        "password": v[1]['Value'].decode('utf-8'),
+                        "user": user,
+                        "password": password,
                         "dsn": f"{db_ip}:{db_port}/{db_sn}"
                     }
             return dss
