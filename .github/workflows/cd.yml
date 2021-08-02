@@ -19,9 +19,8 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Get and Set Version
         id: version
-        run: >
+        run: |
            version=`cat VERSION`
-           echo $version
            echo "::set-output name=version::0.0.1"
       - run:
           echo ${{ steps.version.outputs.version }}
