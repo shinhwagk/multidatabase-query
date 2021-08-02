@@ -12,6 +12,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import cx_Oracle
 
+from consul import Consul
+
 
 def get_logger():
     FORMAT = '%(asctime)s :: %(levelname)s :: %(message)s'
@@ -119,11 +121,33 @@ class DatabasePool:
         self.__dbObjs[db_id] = {'pool': conPool, 'last': datetime.now()}
 
     def __readDss(self):
-        if os.path.exists('ds.json'):
-            with open('ds.json', 'r') as f:
+        ch = os.getenv('CONSUL_HOST')
+        cp = os.getenv('CONSUL_PORT')
+        cs = os.getenv('CONSUL_SERVICES')
+        orcl_user = os.getenv('ORACLE_USER')
+
+        if ch is not None and cp is not None and cs is not None:
+            dss = {}
+            c = Consul(host=ch, port=cp)
+            v = c.kv.get(f'database/oracle/userpass/{orcl_user}', index=None)
+            for s in cs.split(','):
+                (_, services) = c.catalog.service(s)
+                for _s in services:
+                    sm = _s['ServiceMeta']
+                    db_id = sm['db_id']
+                    db_ip = sm['db_ip']
+                    db_port = sm['db_port']
+                    db_sn = sm['db_sn']
+                    dss[db_id] = {
+                        "user": orcl_user,
+                        "password": v[1]['Value'].decode('utf-8'),
+                        "dsn": f"{db_ip}:{db_port}/{db_sn}"
+                    }
+            return dss
+        elif os.path.exists('ds.json'):
+            with open('dss.json', 'r') as f:
                 return json.load(f)
         else:
-            logger.warning('ds.json not exist')
             return {}
 
 
