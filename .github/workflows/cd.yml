@@ -21,7 +21,7 @@ jobs:
         id: version
         run: |
            version=`cat VERSION`
-           echo "::set-output name=version::0.0.1"
+           echo "::set-output name=version::${version}"
       - name: Push to Docker Hub
         uses: docker/build-push-action@v2
         with:
