@@ -22,8 +22,12 @@ jobs:
         run: >
            version=`cat VERSION`
            echo "::set-output name=version::${version}"
+      - run:
+          echo ${{ steps.version.outputs.version }}
       - name: Push to Docker Hub
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: shinhwagk/multidatabase:latest
+          tags: >
+            shinhwagk/multidatabase:${{ steps.version.outputs.version }}
+            shinhwagk/multidatabase:latest
