@@ -21,7 +21,8 @@ jobs:
         id: version
         run: >
            version=`cat VERSION`
-           echo "::set-output name=version::${version}"
+           echo $version
+           echo "::set-output name=version::0.0.1"
       - run:
           echo ${{ steps.version.outputs.version }}
       - name: Push to Docker Hub
