@@ -1,7 +1,7 @@
 {
-    "abc": {
-        "user": "",
-        "passwrod": "",
-        "dns": ""
+    "z11": {
+        "user": "system",
+        "password": "oracle1171",
+        "dsn": "10.65.193.39:1521/dev3"
     }
 }

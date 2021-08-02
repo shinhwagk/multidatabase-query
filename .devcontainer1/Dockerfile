@@ -10,7 +10,7 @@ ARG NODE_VERSION="lts/*"
 RUN if [ "${INSTALL_NODE}" = "true" ]; then su vscode -c "umask 0002 && . /usr/local/share/nvm/nvm.sh && nvm install ${NODE_VERSION} 2>&1"; fi
 
 RUN mkdir -p /opt/oracle
-COPY temp/instantclient_11_2 /opt/oracle/instantclient_11_2
+COPY instantclient_11_2 /opt/oracle/instantclient_11_2
 
 RUN cd /opt/oracle/instantclient_11_2 ; \
     ln -s libclntsh.so.11.1 libclntsh.so; \
@@ -26,3 +26,5 @@ RUN apt update && apt install -y libaio1 && \
 USER vscode
 
 ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_11_2:$LD_LIBRARY_PATH
+
+
