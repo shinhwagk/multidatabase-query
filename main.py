@@ -175,6 +175,7 @@ class MultidatabaseHandler(BaseHTTPRequestHandler):
                 self.send_header('content-length', len(data))
                 self.end_headers()
                 self.wfile.write(data)
+                return
             else:
                 self.wfile.write(bytes(json.dumps({'status': "no service"})))
         except Exception as e:
