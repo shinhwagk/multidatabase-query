@@ -106,8 +106,12 @@ class DatabasePool:
                     lastTime = do['last']
                     if lastTime + timedelta(minutes=10) <= datetime.now():
                         conPool = do['pool']
-                        conPool.close()
-                        del self.__dbObjs[db_id]
+                        try:
+                            conPool.close()
+                        except Exception as e:
+                            logger.error('%s :: %s', "system", f"db_id: {db_id} :: {str(e)}.")
+                        finally:
+                            del self.__dbObjs[db_id]
                         logger.info('%s :: %s', "system", f"db_id: {db_id} removed from database pool.")
 
     def __createConPool(self, db_id):
