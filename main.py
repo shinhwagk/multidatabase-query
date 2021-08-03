@@ -33,7 +33,7 @@ class DatabasePool:
         threading.Thread(target=self.__closeLongUnusedDBObj).start()
 
     def __getDBObj(self, db_id: str):
-        if db_id not in self.__dbObjs.keys():
+        if db_id not in list(self.__dbObjs):
             self.__createConPool(db_id)
         return self.__dbObjs.get(db_id)
 
@@ -96,7 +96,7 @@ class DatabasePool:
                         raise
                     finally:
                         conPool.release(con)
-                    logger.info("%s end  query", db_id)
+                    logger.info("%s end query", db_id)
                     et = datetime.now() - st
                     logger.info("%s release conn", db_id)
                     logger.info("db_id: %s :: %s", db_id, f'query :: elapsed_time: {et}, sql_text: {base64.b64encode(sql_text.encode())}, binds:{json.dumps(binds)}.')
@@ -127,7 +127,10 @@ class DatabasePool:
 
     def __createConPool(self, db_id):
         logger.info('%s :: %s', f"db_id: {db_id}", "create session pool to database pool.")
-        ds = self.__readDss()[db_id]
+        dss = self.__readDss()
+        ds = dss.get(db_id)
+        if ds is None:
+            raise Exception('datasource not exist.')
         user = ds['user']
         password = ds['password']
         dsn = ds['dsn']
