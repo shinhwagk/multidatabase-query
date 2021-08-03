@@ -83,14 +83,21 @@ class DatabasePool:
                     dbObj['last'] = datetime.now()
                     logger.info("%s start  query", db_id)
                     st = datetime.now()
-                    with con.cursor() as cur:
-                        cur.execute(sql_text, binds)
-                        cur.rowfactory = self.__rowfactory(cur)
-                        result['code'] = 0
-                        result['result'] = cur.fetchall()
+                    try:
+                        time_out = 1000  # milliseconds
+                        con.callTimeout = time_out
+                        with con.cursor() as cur:
+                            cur.execute(sql_text, binds)
+                            cur.rowfactory = self.__rowfactory(cur)
+                            result['code'] = 0
+                            result['result'] = cur.fetchall()
+                    except Exception as e:
+                        logger.error("db_id: %s :: %s", db_id, f'{str(e)}, sql_text: {base64.b64encode(sql_text.encode())}, binds:{json.dumps(binds)}')
+                        raise
+                    finally:
+                        conPool.release(con)
                     logger.info("%s end  query", db_id)
                     et = datetime.now() - st
-                    conPool.release(con)
                     logger.info("%s release conn", db_id)
                     logger.info("db_id: %s :: %s", db_id, f'query :: elapsed_time: {et}, sql_text: {base64.b64encode(sql_text.encode())}, binds:{json.dumps(binds)}.')
             except Exception as e:
