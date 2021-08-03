@@ -161,24 +161,28 @@ class MultidatabaseHandler(BaseHTTPRequestHandler):
         return gzip.compress(content)
 
     def do_POST(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('os-hostname', socket.gethostname())
-        self.send_header('content-encoding', 'gzip')
-        self.end_headers()
-        queryParams = self.rfile.read(int(self.headers.get('Content-Length', 0)))
-        reqObj = json.loads(queryParams)
+        try:
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('os-hostname', socket.gethostname())
+            self.send_header('content-encoding', 'gzip')
+            self.end_headers()
+            queryParams = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+            reqObj = json.loads(queryParams)
 
-        if self.path == '/query':
-            result = self.dbPool.query(**reqObj)
-            data = self.gzip_encode(json.dumps(result).encode('utf-8'))
-            self.wfile.write(data)
-            self.wfile.flush()
-        elif self.path == '/register':
-            # todo
-            pass
-        else:
-            self.wfile.write(bytes(json.dumps({'status': "no service"})))
+            if self.path == '/query':
+                result = self.dbPool.query(**reqObj)
+                data = self.gzip_encode(json.dumps(result).encode('utf-8'))
+                self.wfile.write(data)
+                self.wfile.flush()
+            elif self.path == '/register':
+                # todo
+                pass
+            else:
+                self.wfile.write(bytes(json.dumps({'status': "no service"})))
+        except Exception as e:
+            self.wfile.close()
+            print("http error", e)
 
     def do_GET(self):
         self.send_response(200)
