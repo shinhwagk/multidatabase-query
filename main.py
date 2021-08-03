@@ -24,6 +24,8 @@ def get_logger():
 
 logger = get_logger()
 
+EXECUTE_TIMEOUT = os.getenv('EXECUTE_TIMEOUT', '6000')
+
 
 class DatabasePool:
     # { 'con': '', 'last': datetime}
@@ -84,7 +86,7 @@ class DatabasePool:
                     logger.info("%s start  query", db_id)
                     st = datetime.now()
                     try:
-                        time_out = 1000  # milliseconds
+                        time_out = int(EXECUTE_TIMEOUT)  # milliseconds
                         con.callTimeout = time_out
                         with con.cursor() as cur:
                             cur.execute(sql_text, binds)
