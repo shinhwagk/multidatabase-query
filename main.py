@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import cx_Oracle
-
 from consul import Consul
 
 
@@ -144,7 +143,7 @@ class DatabasePool:
                         "dsn": f"{db_ip}:{db_port}/{db_sn}"
                     }
             return dss
-        elif os.path.exists('ds.json'):
+        elif os.path.exists('dss.json'):
             with open('dss.json', 'r') as f:
                 return json.load(f)
         else:
@@ -166,18 +165,16 @@ class MultidatabaseHandler(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'application/json')
             self.send_header('os-hostname', socket.gethostname())
             self.send_header('content-encoding', 'gzip')
-            self.end_headers()
+
             queryParams = self.rfile.read(int(self.headers.get('Content-Length', 0)))
             reqObj = json.loads(queryParams)
 
             if self.path == '/query':
                 result = self.dbPool.query(**reqObj)
                 data = self.gzip_encode(json.dumps(result).encode('utf-8'))
+                self.send_header('content-length', len(data))
+                self.end_headers()
                 self.wfile.write(data)
-                self.wfile.flush()
-            elif self.path == '/register':
-                # todo
-                pass
             else:
                 self.wfile.write(bytes(json.dumps({'status': "no service"})))
         except Exception as e:
