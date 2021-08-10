@@ -70,11 +70,10 @@ class DatabasePool:
 
     def __exceptionProc(self, exc: cx_Oracle.Error, db_id: str = None):
         error, = exc.args
-        if error.code == 'DPI-1010':
+        if hasattr(error.code) and error.code == 'DPI-1010':
             self.__closePool(db_id)
-
-        print("Oracle-Error-Code:", error.code)
-        print("Oracle-Error-Message:", error.message)
+            print("Oracle-Error-Code:", error.code)
+            print("Oracle-Error-Message:", error.message)
     # param sql_text 名字必须是sql_text 因为他和请求参数一致
 
     def query(self, db_id, sql_text: str, binds=()):
