@@ -70,7 +70,7 @@ class DatabasePool:
 
     def __exceptionProc(self, exc: cx_Oracle.Error, db_id: str = None):
         error, = exc.args
-        if hasattr(error.code) and error.code == 'DPI-1010':
+        if hasattr(error, "code") and error.code == 'DPI-1010':
             self.__closePool(db_id)
             print("Oracle-Error-Code:", error.code)
             print("Oracle-Error-Message:", error.message)
