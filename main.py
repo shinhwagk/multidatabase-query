@@ -93,7 +93,7 @@ class DatabasePool:
                     con.callTimeout = int(EXECUTE_TIMEOUT)  # milliseconds
                     try:
                         with con.cursor() as cur:
-                            cur.execute(sql_text, binds)
+                            cur.execute(sql_text, tuple(binds))
                             cur.rowfactory = self.__rowfactory(cur)
                             result['code'] = 0
                             result['result'] = cur.fetchall()
