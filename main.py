@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import cx_Oracle
+import requests
 from consul import Consul
 
 
@@ -232,5 +233,15 @@ class MultidatabaseQueryService:
             server.serve_forever()
 
 
+def ServiceRegister():
+    hostname = socket.gethostname()
+    consul_addr = os.getenv('CONSUL_ADDR')
+    data = {"name": "oramultidatabasece-oracle", "address": hostname, "port": 8000,
+            "checks": [{"http": f"http://{hostname}:8000/", "interval": "10s"}]}
+    res = requests.put(f'http://{consul_addr}/v1/agent/service/register', json=data)
+    print('register', res.status_code)
+
+
 if __name__ == "__main__":
+    ServiceRegister()
     MultidatabaseQueryService().start()
