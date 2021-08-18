@@ -187,6 +187,7 @@ class DatabasePool:
 
 
 class MultidatabaseHandler(BaseHTTPRequestHandler):
+    req_cnt = 0
     """
     BaseHTTPRequestHandler 不是并发的，在这里也不需要，如果需要并发交给nginx lb或者docker-compose内部轮巡
     """
@@ -196,6 +197,7 @@ class MultidatabaseHandler(BaseHTTPRequestHandler):
         return gzip.compress(content)
 
     def do_POST(self):
+        self.req_cnt += 1
         try:
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -216,6 +218,9 @@ class MultidatabaseHandler(BaseHTTPRequestHandler):
         except Exception as e:
             self.wfile.close()
             print("http error", e)
+        finally:
+            print(f"parallel request: {self.req_cnt}")
+            self.req_cnt -= 1
 
     def do_GET(self):
         self.send_response(200)
