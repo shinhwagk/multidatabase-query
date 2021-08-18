@@ -9,6 +9,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 
 import cx_Oracle
 import requests
@@ -151,7 +152,7 @@ class DatabasePool:
             user = ds['user']
             password = ds['password']
             dsn = ds['dsn']
-            conPool = cx_Oracle.SessionPool(user=user, password=password, dsn=dsn, min=1, max=2, increment=1, timeout=10, encoding="UTF-8")
+            conPool = cx_Oracle.SessionPool(user=user, password=password, dsn=dsn, min=1, max=20, increment=1, timeout=10, encoding="UTF-8")
             self.__dbObjs[db_id] = {'pool': conPool, 'last': datetime.now()}
         except Exception as e:
             self.__exceptionProc(e, db_id)
@@ -226,9 +227,13 @@ class MultidatabaseHandler(BaseHTTPRequestHandler):
         self.wfile.write(bytes(json.dumps({'status': 'ok'}), "utf8"))
 
 
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    pass
+
+
 class MultidatabaseQueryService:
     def start(self):
-        with HTTPServer(('', 8000), MultidatabaseHandler) as server:
+        with ThreadedHTTPServer(('', 8000), MultidatabaseHandler) as server:
             logger.info('system :: MultidatabaseQueryService started, port 8000.')
             server.serve_forever()
 
