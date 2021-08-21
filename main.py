@@ -78,7 +78,7 @@ class DatabasePool:
             print("Oracle-Error-Message:", error.message)
     # param sql_text 名字必须是sql_text 因为他和请求参数一致
 
-    def query(self, db_id, sql_text: str, binds=()):
+    def query(self, db_id, sql_text: str, binds=tuple()):
         # code 1 is error, 0 is success.
         result = {'code': 1, 'result': [], 'error': "", 'db_id': db_id}
         if self.__restrictSqlTextType(sql_text):
@@ -159,16 +159,16 @@ class DatabasePool:
             raise
 
     def __readDss(self):
-        ch = os.getenv('CONSUL_HOST')
-        cp = os.getenv('CONSUL_PORT')
-        cs = os.getenv('CONSUL_SERVICES')
+        consul_addr = os.getenv('CONSUL_ADDR')
+        consul_services = os.getenv('CONSUL_SERVICES')
 
-        if ch is not None and cp is not None and cs is not None:
+        if consul_addr is not None and consul_services is not None:
+            c_host, c_port = consul_addr.split(":")
             dss = {}
-            c = Consul(host=ch, port=cp)
+            c = Consul(host=c_host, port=c_port)
             v = c.kv.get(f'database/oracle/userpass/multidatabase', index=None)
             user, password = v[1]['Value'].decode('utf-8').split(':')
-            for s in cs.split(','):
+            for s in consul_services.split(','):
                 (_, services) = c.catalog.service(s)
                 for _s in services:
                     sm = _s['ServiceMeta']
