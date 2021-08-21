@@ -152,7 +152,7 @@ class DatabasePool:
             user = ds['user']
             password = ds['password']
             dsn = ds['dsn']
-            conPool = cx_Oracle.SessionPool(user=user, password=password, dsn=dsn, min=1, max=20, increment=1, timeout=10, encoding="UTF-8")
+            conPool = cx_Oracle.SessionPool(user=user, password=password, dsn=dsn, min=1, max=20, increment=1, timeout=60, encoding="UTF-8", getmode=cx_Oracle.SPOOL_ATTRVAL_WAIT)
             self.__dbObjs[db_id] = {'pool': conPool, 'last': datetime.now()}
         except Exception as e:
             self.__exceptionProc(e, db_id)
