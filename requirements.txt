@@ -1,3 +1,2 @@
--i https://mirrors.aliyun.com/pypi/simple
 cx_Oracle
 requests
