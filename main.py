@@ -13,7 +13,6 @@ from socketserver import ThreadingMixIn
 
 import cx_Oracle
 import requests
-from consul import Consul
 
 
 def get_logger():
@@ -27,6 +26,7 @@ def get_logger():
 logger = get_logger()
 
 EXECUTE_TIMEOUT = os.getenv('EXECUTE_TIMEOUT', '10000')
+CONSUL_ADDR = ""
 
 
 class DatabasePool:
@@ -163,14 +163,10 @@ class DatabasePool:
         consul_services = os.getenv('CONSUL_SERVICES')
 
         if consul_addr is not None and consul_services is not None:
-            c_host, c_port = consul_addr.split(":")
             dss = {}
-            c = Consul(host=c_host, port=c_port)
-            v = c.kv.get(f'database/oracle/userpass/multidatabase', index=None)
-            user, password = v[1]['Value'].decode('utf-8').split(':')
+            user, password = ConsulClient.getUserpass()
             for s in consul_services.split(','):
-                (_, services) = c.catalog.service(s)
-                for _s in services:
+                for _s in ConsulClient.getDBInsts(s):
                     sm = _s['ServiceMeta']
                     db_id = sm['db_id']
                     db_ip = sm['db_ip']
@@ -243,15 +239,30 @@ class MultidatabaseQueryService:
             server.serve_forever()
 
 
-def ServiceRegister():
-    hostname = socket.gethostname()
-    consul_addr = os.getenv('CONSUL_ADDR')
-    data = {"name": "multidatabasece-oracle", "id": hostname, "address": hostname, "port": 8000,
-            "checks": [{"http": f"http://{hostname}:8000/", "interval": "10s"}]}
-    res = requests.put(f'http://{consul_addr}/v1/agent/service/register', json=data)
-    print('register', res.status_code)
+class ConsulClient:
+    @staticmethod
+    def register():
+        hostname = socket.gethostname()
+        data = {"name": "multidatabasece-oracle", "id": hostname, "address": hostname, "port": 8000,
+                "checks": [{"http": f"http://{hostname}:8000/", "interval": "10s"}]}
+        res = requests.put(f'http://{CONSUL_ADDR}/v1/agent/service/register', json=data)
+        print('register', res.status_code)
+
+    @staticmethod
+    def getUserpass():
+        return os.getenv('ORACLE_USERPASS').split(':')
+        # res = requests.get(f'http://{self.consul_addr}/v1/kv/database/oracle/userpass/multidatabase').json()
+        # if len(res) == 0:
+        #     logger.error("consul error: key -> 'database/oracle/userpass/multidatabase' userpass not exist.")
+        # return base64.b64decode(res[0]['Value']).decode('utf-8').split(':')
+
+    @staticmethod
+    def getDBInsts(service_name):
+        # database instances
+        return requests.get(f'http://{CONSUL_ADDR}/v1/catalog/service/{service_name}').json()
 
 
 if __name__ == "__main__":
-    ServiceRegister()
+    CONSUL_ADDR = os.getenv('CONSUL_ADDR')
+    ConsulClient.register()
     MultidatabaseQueryService().start()
