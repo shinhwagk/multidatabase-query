@@ -1,6 +1,6 @@
 FROM shinhwagk/python:oracle-18.5
 
-RUN pip install python-consul2
+RUN pip install requests
 WORKDIR /app
 COPY main.py .
 

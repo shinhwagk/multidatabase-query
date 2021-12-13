@@ -12,7 +12,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
 import cx_Oracle
-import requests
 
 
 def get_logger():
@@ -26,15 +25,19 @@ def get_logger():
 logger = get_logger()
 
 EXECUTE_TIMEOUT = os.getenv('EXECUTE_TIMEOUT', '10000')
-CONSUL_ADDR = ""
+ALLOW_COMMANDS = os.getenv('ALLOW_COMMANDS', 'select')
 
 
 class DatabasePool:
     # { 'con': '', 'last': datetime}
     __dbObjs = dict()
+    user, password = os.getenv('ORACLE_USERPASS').split(':')
 
     def __init__(self) -> None:
         threading.Thread(target=self.__closeLongUnusedDBObj).start()
+
+    def setDsns(self, dsns):
+        self.dsns = dsns
 
     def __getDBObj(self, db_id: str):
         if db_id not in list(self.__dbObjs):
@@ -67,8 +70,12 @@ class DatabasePool:
             return dict(zip(colNames, colValues))
         return func
 
-    def __restrictSqlTextType(self, sqlText) -> bool:
-        return False if re.match(r'(?i)^\s*select', sqlText) is None else True
+    def __restrictSqlTextCommand(self, sqlText) -> bool:
+        for cmd in [c.strip() for c in ALLOW_COMMANDS.split(',')]:
+            if re.match(rf'(?i)^\s*{cmd}', sqlText) is not None:
+                return True
+        return False
+        # return False if re.match(rf'(?i)^\s*{}', sqlText) is None else True
 
     def __exceptionProc(self, exc: cx_Oracle.Error, db_id: str = None):
         error, = exc.args
@@ -81,39 +88,40 @@ class DatabasePool:
     def query(self, db_id, sql_text: str, binds=tuple()):
         # code 1 is error, 0 is success.
         result = {'code': 1, 'result': [], 'error': "", 'db_id': db_id}
-        if self.__restrictSqlTextType(sql_text):
-            try:
-                dbObj = self.__getDBObj(db_id)
-                logger.info("%s __getDBObj", db_id)
-                if dbObj is None:
-                    result['error'] = 'datasource not exist.'
-                    logger.error("datasource not exist.")
-                else:
-                    con = dbObj['pool'].acquire()
-                    logger.info("%s start  query", db_id)
-                    st = datetime.now()
-                    con.callTimeout = int(EXECUTE_TIMEOUT)  # milliseconds
-                    try:
-                        with con.cursor() as cur:
-                            cur.execute(sql_text, tuple(binds))
-                            cur.rowfactory = self.__rowfactory(cur)
-                            result['code'] = 0
-                            result['result'] = cur.fetchall()
-                        dbObj['last'] = datetime.now()
-                    except Exception as e:
-                        self.__exceptionProc(e, db_id)
-                        raise
-                    finally:
-                        dbObj['pool'].release(con)
-                    logger.info("%s end query", db_id)
-                    et = datetime.now() - st
-                    logger.info("%s release conn", db_id)
-                    logger.info("db_id: %s :: %s", db_id, f'query :: elapsed_time: {et}, sql_text: {base64.b64encode(sql_text.encode())}, binds:{json.dumps(binds)}.')
-            except Exception as e:
-                result['error'] = str(e)
-                logger.error("db_id: %s :: %s", db_id, f'{str(e)}, sql_text: {base64.b64encode(sql_text.encode())}, binds:{json.dumps(binds)}')
-        else:
-            result['error'] = 'sql_text only suppet [select]'
+        if not self.__restrictSqlTextCommand(sql_text):
+            result['error'] = f'sql_text only allow [{ALLOW_COMMANDS}]'
+            return result
+        try:
+            dbObj = self.__getDBObj(db_id)
+            logger.info("%s __getDBObj", db_id)
+            if dbObj is None:
+                result['error'] = 'datasource not exist.'
+                logger.error("datasource not exist.")
+            else:
+                con = dbObj['pool'].acquire()
+                logger.info("%s start  query", db_id)
+                st = datetime.now()
+                con.callTimeout = int(EXECUTE_TIMEOUT)  # milliseconds
+                try:
+                    with con.cursor() as cur:
+                        cur.execute(sql_text, tuple(binds))
+                        cur.rowfactory = self.__rowfactory(cur)
+                        result['code'] = 0
+                        result['result'] = cur.fetchall()
+                    dbObj['last'] = datetime.now()
+                except Exception as e:
+                    self.__exceptionProc(e, db_id)
+                    raise
+                finally:
+                    dbObj['pool'].release(con)
+                logger.info("%s end query", db_id)
+                et = datetime.now() - st
+                logger.info("%s release conn", db_id)
+                logger.info("db_id: %s :: %s", db_id, f'query :: elapsed_time: {et}, sql_text: {base64.b64encode(sql_text.encode())}, binds:{json.dumps(binds)}.')
+        except Exception as e:
+            result['error'] = str(e)
+            logger.error("db_id: %s :: %s", db_id, f'{str(e)}, sql_text: {base64.b64encode(sql_text.encode())}, binds:{json.dumps(binds)}')
+
         return result
 
     def __closePool(self, db_id):
@@ -149,37 +157,12 @@ class DatabasePool:
             ds = dss.get(db_id)
             if ds is None:
                 raise Exception('datasource not exist.')
-            user = ds['user']
-            password = ds['password']
             dsn = ds['dsn']
-            conPool = cx_Oracle.SessionPool(user=user, password=password, dsn=dsn, min=1, max=20, increment=1, timeout=60, encoding="UTF-8", getmode=cx_Oracle.SPOOL_ATTRVAL_WAIT)
+            conPool = cx_Oracle.SessionPool(user=self.user, password=self.password, dsn=dsn, min=1, max=20, increment=1, timeout=60, encoding="UTF-8", getmode=cx_Oracle.SPOOL_ATTRVAL_WAIT)
             self.__dbObjs[db_id] = {'pool': conPool, 'last': datetime.now()}
         except Exception as e:
             self.__exceptionProc(e, db_id)
             raise
-
-    def __readDss(self):
-        consul_addr = os.getenv('CONSUL_ADDR')
-        consul_services = os.getenv('CONSUL_SERVICES')
-
-        if consul_addr is not None and consul_services is not None:
-            dss = {}
-            user, password = ConsulClient.getUserpass()
-            for s in consul_services.split(','):
-                for _s in ConsulClient.getDBInsts(s):
-                    sm = _s['ServiceMeta']
-                    db_id = sm['db_id']
-                    db_ip = sm['db_ip']
-                    db_port = sm['db_port']
-                    db_sn = sm['db_sn']
-                    dss[db_id] = {
-                        "user": user,
-                        "password": password,
-                        "dsn": f"{db_ip}:{db_port}/{db_sn}"
-                    }
-            return dss
-        else:
-            return {}
 
 
 class MultidatabaseHandler(BaseHTTPRequestHandler):
@@ -239,30 +222,5 @@ class MultidatabaseQueryService:
             server.serve_forever()
 
 
-class ConsulClient:
-    @staticmethod
-    def register():
-        hostname = socket.gethostname()
-        data = {"name": "multidatabasece-oracle", "id": hostname, "address": hostname, "port": 8000,
-                "checks": [{"http": f"http://{hostname}:8000/", "interval": "10s"}]}
-        res = requests.put(f'http://{CONSUL_ADDR}/v1/agent/service/register', json=data)
-        print('register', res.status_code)
-
-    @staticmethod
-    def getUserpass():
-        return os.getenv('ORACLE_USERPASS').split(':')
-        # res = requests.get(f'http://{self.consul_addr}/v1/kv/database/oracle/userpass/multidatabase').json()
-        # if len(res) == 0:
-        #     logger.error("consul error: key -> 'database/oracle/userpass/multidatabase' userpass not exist.")
-        # return base64.b64decode(res[0]['Value']).decode('utf-8').split(':')
-
-    @staticmethod
-    def getDBInsts(service_name):
-        # database instances
-        return requests.get(f'http://{CONSUL_ADDR}/v1/catalog/service/{service_name}').json()
-
-
 if __name__ == "__main__":
-    CONSUL_ADDR = os.getenv('CONSUL_ADDR')
-    ConsulClient.register()
     MultidatabaseQueryService().start()

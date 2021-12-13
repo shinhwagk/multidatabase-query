@@ -15,14 +15,14 @@ services:
       - ..:/workspace:cached
     command: sleep infinity
     user: vscode
-  nginx:
-    image: nginx:latest
-    restart: unless-stopped
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-  querys:
-    image: shinhwagk/multidatabase:0.0.5
-    deploy:
-      replicas: 3
-    ports:
-      - 8000
+  # nginx:
+  #   image: nginx:latest
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/conf.d/default.conf
+  # querys:
+  #   image: shinhwagk/multidatabase:0.0.5
+  #   deploy:
+  #     replicas: 3
+  #   ports:
+  #     - 8000
