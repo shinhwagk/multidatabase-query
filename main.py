@@ -1,17 +1,15 @@
 import base64
-import gzip
 import json
 import logging
 import os
 import re
-import socket
 import threading
 import time
 from datetime import datetime, timedelta
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from socketserver import ThreadingMixIn
 
 import cx_Oracle
+from fastapi import FastAPI
+from pydantic import BaseModel
 
 
 def get_logger():
@@ -30,21 +28,21 @@ ALLOW_COMMANDS = os.getenv('ALLOW_COMMANDS', 'select')
 
 class DatabasePool:
     # { 'con': '', 'last': datetime}
-    __dbObjs = dict()
-    user, password = os.getenv('ORACLE_USERPASS').split(':')
+    __db_pool = dict()
 
     def __init__(self) -> None:
-        threading.Thread(target=self.__closeLongUnusedDBObj).start()
+        threading.Thread(target=self.__close_long_unused_dbobj).start()
 
-    def setDsns(self, dsns):
-        self.dsns = dsns
+    def __gen_db_id(self, user: str, sdn: str) -> str:
+        return f"{user}@{sdn}"
 
-    def __getDBObj(self, db_id: str):
-        if db_id not in list(self.__dbObjs):
-            self.__createConPool(db_id)
-        return self.__dbObjs.get(db_id)
+    def __get_db_obj(self, username: str, password: str, sdn: str):
+        db_id = self.__gen_db_id(username, sdn)
+        if db_id not in list(self.__db_pool):
+            self.__create_con_pool(username, password, sdn)
+        return self.__db_pool.get(db_id)
 
-    def __colTypeProc(self, colType, colValue):
+    def __col_type_proc(self, colType, colValue):
         # 特殊处理CLOB类型
         if colType in (cx_Oracle.DB_TYPE_VARCHAR, cx_Oracle.DB_TYPE_DATE, cx_Oracle.DB_TYPE_NUMBER):
             return colValue
@@ -66,18 +64,18 @@ class DatabasePool:
             colNames = [col[0] for col in colDescs]
             for idx in range(len(cur.description)):
                 ct = colDescs[idx][1]
-                colValues.append(self.__colTypeProc(ct, args[idx]))
+                colValues.append(self.__col_type_proc(ct, args[idx]))
             return dict(zip(colNames, colValues))
         return func
 
-    def __restrictSqlTextCommand(self, sqlText) -> bool:
+    def __restrict_sqltext_command(self, sqlText) -> bool:
         for cmd in [c.strip() for c in ALLOW_COMMANDS.split(',')]:
             if re.match(rf'(?i)^\s*{cmd}', sqlText) is not None:
                 return True
         return False
         # return False if re.match(rf'(?i)^\s*{}', sqlText) is None else True
 
-    def __exceptionProc(self, exc: cx_Oracle.Error, db_id: str = None):
+    def __exception_proc(self, exc: cx_Oracle.Error, db_id: str = None):
         error, = exc.args
         if hasattr(error, "code") and error.code == 'DPI-1010':
             self.__closePool(db_id)
@@ -85,20 +83,22 @@ class DatabasePool:
             print("Oracle-Error-Message:", error.message)
     # param sql_text 名字必须是sql_text 因为他和请求参数一致
 
-    def query(self, db_id, sql_text: str, binds=tuple()):
+    def query(self, userpass: str, sdn: str, sql_text: str, binds=tuple()):
         # code 1 is error, 0 is success.
-        result = {'code': 1, 'result': [], 'error': "", 'db_id': db_id}
-        if not self.__restrictSqlTextCommand(sql_text):
+        user, password = userpass.split(':')
+        db_id = self.__gen_db_id(user, sdn)
+        result = {'code': 1, 'result': [], 'error': "", 'sdn': sdn}
+        if not self.__restrict_sqltext_command(sql_text):
             result['error'] = f'sql_text only allow [{ALLOW_COMMANDS}]'
             return result
         try:
-            dbObj = self.__getDBObj(db_id)
+            dbobj = self.__get_db_obj(user, password, sdn)
             logger.info("%s __getDBObj", db_id)
-            if dbObj is None:
+            if dbobj is None:
                 result['error'] = 'datasource not exist.'
                 logger.error("datasource not exist.")
             else:
-                con = dbObj['pool'].acquire()
+                con = dbobj['pool'].acquire()
                 logger.info("%s start  query", db_id)
                 st = datetime.now()
                 con.callTimeout = int(EXECUTE_TIMEOUT)  # milliseconds
@@ -108,12 +108,12 @@ class DatabasePool:
                         cur.rowfactory = self.__rowfactory(cur)
                         result['code'] = 0
                         result['result'] = cur.fetchall()
-                    dbObj['last'] = datetime.now()
+                    dbobj['last'] = datetime.now()
                 except Exception as e:
-                    self.__exceptionProc(e, db_id)
+                    self.__exception_proc(e, db_id)
                     raise
                 finally:
-                    dbObj['pool'].release(con)
+                    dbobj['pool'].release(con)
                 logger.info("%s end query", db_id)
                 et = datetime.now() - st
                 logger.info("%s release conn", db_id)
@@ -125,102 +125,60 @@ class DatabasePool:
         return result
 
     def __closePool(self, db_id):
-        do = self.__dbObjs.get(db_id)
+        do = self.__db_pool.get(db_id)
         if do is not None:
             try:
                 do['pool'].close()
             except Exception as e:
                 logger.error("db_id: %s :: %s", db_id, f'{str(e)}')
 
-    def __closeLongUnusedDBObj(self):
+    def __close_long_unused_dbobj(self):
         while True:
             time.sleep(60)
             logger.info('%s :: %s', "system", "try remove long time unused the session pool.")
-            for db_id in list(self.__dbObjs):
-                do = self.__dbObjs.get(db_id)
+            for db_id in list(self.__db_pool):
+                do = self.__db_pool.get(db_id)
                 if do is not None:
-                    lastTime = do['last']
-                    if lastTime + timedelta(minutes=10) <= datetime.now():
+                    last_time = do['last']
+                    if last_time + timedelta(minutes=10) <= datetime.now():
                         try:
                             do['pool'].close()
                         except Exception as e:
-                            self.__exceptionProc(e, db_id)
+                            self.__exception_proc(e, db_id)
                             logger.error('%s :: %s', "system", f"db_id: {db_id} :: {str(e)}.")
                         finally:
-                            del self.__dbObjs[db_id]
+                            del self.__db_pool[db_id]
                         logger.info('%s :: %s', "system", f"db_id: {db_id} removed from database pool.")
 
-    def __createConPool(self, db_id):
+    def __create_con_pool(self, username, password, dsn):
+        db_id = self.__gen_db_id(username, dsn)
         try:
             logger.info('%s :: %s', f"db_id: {db_id}", "create session pool to database pool.")
-            dss = self.__readDss()
-            ds = dss.get(db_id)
-            if ds is None:
-                raise Exception('datasource not exist.')
-            dsn = ds['dsn']
-            conPool = cx_Oracle.SessionPool(user=self.user, password=self.password, dsn=dsn, min=1, max=20, increment=1, timeout=60, encoding="UTF-8", getmode=cx_Oracle.SPOOL_ATTRVAL_WAIT)
-            self.__dbObjs[db_id] = {'pool': conPool, 'last': datetime.now()}
+            con_pool = cx_Oracle.SessionPool(user=username, password=password, dsn=dsn, min=1, max=20, increment=1, timeout=60, encoding="UTF-8", getmode=cx_Oracle.SPOOL_ATTRVAL_WAIT)
+            self.__db_pool[db_id] = {'pool': con_pool, 'last': datetime.now()}
         except Exception as e:
-            self.__exceptionProc(e, db_id)
+            self.__exception_proc(e, db_id)
             raise
 
 
-class MultidatabaseHandler(BaseHTTPRequestHandler):
-    req_cnt = 0
-    """
-    BaseHTTPRequestHandler 不是并发的，在这里也不需要，如果需要并发交给nginx lb或者docker-compose内部轮巡
-    """
-    dbPool = DatabasePool()
-
-    def gzip_encode(self, content: bytes):
-        return gzip.compress(content)
-
-    def do_POST(self):
-        self.req_cnt += 1
-        try:
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('os-hostname', socket.gethostname())
-
-            if self.path == '/query':
-                self.send_header('content-encoding', 'gzip')
-                queryParams = self.rfile.read(int(self.headers.get('Content-Length', 0)))
-                reqObj = json.loads(queryParams)
-                result = self.dbPool.query(**reqObj)
-                data = self.gzip_encode(json.dumps(result).encode('utf-8'))
-                self.send_header('content-length', len(data))
-                self.end_headers()
-                self.wfile.write(data)
-                return
-            else:
-                self.wfile.write(bytes(json.dumps({'status': "no service"})))
-        except Exception as e:
-            self.wfile.close()
-            print("http error", e)
-        finally:
-            print(f"parallel request: {self.req_cnt}")
-            self.req_cnt -= 1
-
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-        if self.path == '/check':
-            # todo
-            pass
-        self.wfile.write(bytes(json.dumps({'status': 'ok'}), "utf8"))
+class QueryParams(BaseModel):
+    userpass: str
+    sdn: str
+    sql_text: str
+    binds = tuple()
 
 
-class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-    pass
+app = FastAPI()
+dbPool = DatabasePool()
 
 
-class MultidatabaseQueryService:
-    def start(self):
-        with ThreadedHTTPServer(('', 8000), MultidatabaseHandler) as server:
-            logger.info('system :: MultidatabaseQueryService started, port 8000.')
-            server.serve_forever()
+@app.post("/query")
+async def query(params: QueryParams):
+    print(params)
+    result = dbPool.query(**params.dict())
+    return result
 
 
-if __name__ == "__main__":
-    MultidatabaseQueryService().start()
+@app.get("/check")
+def check():
+    return None
