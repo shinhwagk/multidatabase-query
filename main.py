@@ -173,7 +173,7 @@ dbPool = DatabasePool()
 
 
 @app.post("/query")
-async def query(params: QueryParams):
+def query(params: QueryParams):
     print(params)
     result = dbPool.query(**params.dict())
     return result
