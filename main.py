@@ -33,13 +33,13 @@ class DatabasePool:
     def __init__(self) -> None:
         threading.Thread(target=self.__close_long_unused_dbobj).start()
 
-    def __gen_db_id(self, user: str, sdn: str) -> str:
-        return f"{user}@{sdn}"
+    def __gen_db_id(self, user: str, dsn: str) -> str:
+        return f"{user}@{dsn}"
 
-    def __get_db_obj(self, username: str, password: str, sdn: str):
-        db_id = self.__gen_db_id(username, sdn)
+    def __get_db_obj(self, username: str, password: str, dsn: str):
+        db_id = self.__gen_db_id(username, dsn)
         if db_id not in list(self.__db_pool):
-            self.__create_con_pool(username, password, sdn)
+            self.__create_con_pool(username, password, dsn)
         return self.__db_pool.get(db_id)
 
     def __col_type_proc(self, colType, colValue):
@@ -83,16 +83,16 @@ class DatabasePool:
             print("Oracle-Error-Message:", error.message)
     # param sql_text 名字必须是sql_text 因为他和请求参数一致
 
-    def query(self, userpass: str, sdn: str, sql_text: str, binds=tuple()):
+    def query(self, userpass: str, dsn: str, sql_text: str, binds=tuple()):
         # code 1 is error, 0 is success.
         user, password = userpass.split(':')
-        db_id = self.__gen_db_id(user, sdn)
-        result = {'code': 1, 'result': [], 'error': "", 'sdn': sdn}
+        db_id = self.__gen_db_id(user, dsn)
+        result = {'code': 1, 'result': [], 'error': "", 'dsn': dsn}
         if not self.__restrict_sqltext_command(sql_text):
             result['error'] = f'sql_text only allow [{ALLOW_COMMANDS}]'
             return result
         try:
-            dbobj = self.__get_db_obj(user, password, sdn)
+            dbobj = self.__get_db_obj(user, password, dsn)
             logger.info("%s __getDBObj", db_id)
             if dbobj is None:
                 result['error'] = 'datasource not exist.'
@@ -163,7 +163,7 @@ class DatabasePool:
 
 class QueryParams(BaseModel):
     userpass: str
-    sdn: str
+    dsn: str
     sql_text: str
     binds = tuple()
 
