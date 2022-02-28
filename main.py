@@ -24,7 +24,9 @@ logger = get_logger()
 
 EXECUTE_TIMEOUT = os.getenv('EXECUTE_TIMEOUT', '10000')
 ALLOW_COMMANDS = os.getenv('ALLOW_COMMANDS', 'select')
-ORACLE_USERPASS = os.getenv('ORACLE_USERPASS', '')
+ORACLE_USERPASS = os.getenv('ORACLE_USERPASS')
+if ORACLE_USERPASS is None:
+    raise Exception('env ORACLE_USERPASS no set.')
 
 
 class DatabasePool:
@@ -34,8 +36,8 @@ class DatabasePool:
     def __init__(self) -> None:
         threading.Thread(target=self.__close_long_unused_dbobj).start()
 
-    def __gen_db_id(self, user: str, dsn: str) -> str:
-        return f"{user}@{dsn}"
+    def __gen_db_id(self, username: str, dsn: str) -> str:
+        return f"{username}@{dsn}"
 
     def __get_db_obj(self, username: str, password: str, dsn: str):
         db_id = self.__gen_db_id(username, dsn)
@@ -84,9 +86,10 @@ class DatabasePool:
             print("Oracle-Error-Message:", error.message)
     # param sql_text 名字必须是sql_text 因为他和请求参数一致
 
-    def query(self, userpass: str, dsn: str, sql_text: str, binds=tuple()):
+    def query(self, dsn: str, sql_text: str, binds=tuple()):
         # code 1 is error, 0 is success.
-        user, password = userpass.split(':')
+        print(ORACLE_USERPASS)
+        user, password = ORACLE_USERPASS.split(':')
         db_id = self.__gen_db_id(user, dsn)
         result = {'code': 1, 'result': [], 'error': "", 'dsn': dsn}
         if not self.__restrict_sqltext_command(sql_text):
@@ -163,7 +166,6 @@ class DatabasePool:
 
 
 class QueryParams(BaseModel):
-    userpass: str
     dsn: str
     sql_text: str
     binds = tuple()
