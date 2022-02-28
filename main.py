@@ -24,6 +24,7 @@ logger = get_logger()
 
 EXECUTE_TIMEOUT = os.getenv('EXECUTE_TIMEOUT', '10000')
 ALLOW_COMMANDS = os.getenv('ALLOW_COMMANDS', 'select')
+ORACLE_USERPASS = os.getenv('ORACLE_USERPASS', '')
 
 
 class DatabasePool:
