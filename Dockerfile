@@ -1,12 +1,12 @@
 FROM python:3.10-slim
 
-ADD https://download.oracle.com/otn_software/linux/instantclient/185000/instantclient-basic-linux.x64-18.5.0.0.0dbru.zip /opt/oracle/instantclient_18_5
-
-RUN sudo apt update && sudo apt install -y libaio1 && \
-    sudo sh -c "echo /opt/oracle/instantclient_18_5 > /etc/ld.so.conf.d/oracle-instantclient.conf" && \
-    sudo ldconfig && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    pip install cx_Oracle -i https://mirrors.aliyun.com/pypi/simple
+RUN apt update && apt install -y libaio1 unzip curl && \
+    curl -o /tmp/instantclient-basic-linux.x64-18.5.0.0.0dbru.zip https://download.oracle.com/otn_software/linux/instantclient/185000/instantclient-basic-linux.x64-18.5.0.0.0dbru.zip && \
+    mkdir -p /opt/oracle/instantclient_18_5 && \
+    unzip /tmp/instantclient-basic-linux.x64-18.5.0.0.0dbru.zip -d /opt/oracle/instantclient_18_5 && \
+    sh -c "echo /opt/oracle/instantclient_18_5 > /etc/ld.so.conf.d/oracle-instantclient.conf" && \
+    ldconfig && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_18_5:$LD_LIBRARY_PATH
 
