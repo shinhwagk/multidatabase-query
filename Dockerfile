@@ -1,10 +1,16 @@
+FROM python:3.10-slim as oraclelib
+
+ADD https://download.oracle.com/otn_software/linux/instantclient/185000/instantclient-basic-linux.x64-18.5.0.0.0dbru.zip /tmp/
+
+RUN apt update && apt install -y unzip && \
+    mkdir -p /opt/oracle/ && \
+    unzip /tmp/instantclient-basic-linux.x64-18.5.0.0.0dbru.zip -d /opt/oracle/
+
 FROM python:3.10-slim
 
-RUN apt update && apt install -y libaio1 unzip curl && \
-    curl -o /tmp/instantclient-basic-linux.x64-18.5.0.0.0dbru.zip https://download.oracle.com/otn_software/linux/instantclient/185000/instantclient-basic-linux.x64-18.5.0.0.0dbru.zip && \
-    mkdir -p /opt/oracle/ && \
-    unzip /tmp/instantclient-basic-linux.x64-18.5.0.0.0dbru.zip -d /opt/oracle/ && \
-    rm -f /tmp/instantclient-basic-linux.x64-18.5.0.0.0dbru.zip && \
+COPY --from=oraclelib /opt/oracle /opt/oracle
+
+RUN apt update && apt install -y libaio1 && \
     sh -c "echo /opt/oracle/instantclient_18_5 > /etc/ld.so.conf.d/oracle-instantclient.conf" && \
     ldconfig && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
