@@ -15,7 +15,7 @@ RUN apt update && apt install -y libaio1 && \
     ldconfig && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_18_5:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_18_5
 
 EXPOSE 5000
 
