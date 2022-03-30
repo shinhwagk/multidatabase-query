@@ -15,12 +15,6 @@ if ORACLE_USERPASS is None:
 
 
 logging.basicConfig(level=logging.INFO)
-# def exception_proc(exc: cx_Oracle.Error, db_id: str = None):
-#     error, = exc.args
-#     if hasattr(error, "code") and error.code == 'DPI-1010':
-#         close_database(db_id)
-#         print("Oracle-Error-Code:", error.code)
-#         print("Oracle-Error-Message:", error.message)
 
 
 class QueryParams(BaseModel):
