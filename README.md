@@ -5,7 +5,6 @@ version: "3.4"
 
 services:
   multidatabase-query:
-    <<: *log
     image: shinhwagk/multidatabase:v0.2.11
     restart: "on-failure"
     deploy:
